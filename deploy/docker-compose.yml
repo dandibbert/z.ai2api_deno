@@ -18,6 +18,9 @@ services:
       - THINKING_MODEL=GLM-4.5-Thinking
       - SEARCH_MODEL=GLM-4.5-Search
       - AIR_MODEL=GLM-4.5-Air
+      - MODEL_46=GLM-4.6
+      - MODEL_46_THINKING=GLM-4.6-Thinking
+      - MODEL_46_SEARCH=GLM-4.6-Search
       
       # Server Configuration
       - LISTEN_PORT=8080

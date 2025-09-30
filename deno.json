@@ -1,7 +1,7 @@
 {
   "name": "z-ai2api-deno",
   "version": "1.2.0",
-  "description": "轻量级 OpenAI API 兼容代理服务，通过 Claude Code Router 接入 Z.AI，支持 GLM-4.5 系列模型的完整功能",
+  "description": "轻量级 OpenAI API 兼容代理服务，通过 Claude Code Router 接入 Z.AI，支持 GLM-4.5/4.6 系列模型的完整功能",
   "type": "module",
   "imports": {
     "std/": "https://deno.land/std@0.208.0/",

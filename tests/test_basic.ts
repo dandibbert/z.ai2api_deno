@@ -16,6 +16,9 @@ Deno.test("Model configuration", () => {
   assertEquals(config.THINKING_MODEL, "GLM-4.5-Thinking");
   assertEquals(config.SEARCH_MODEL, "GLM-4.5-Search");
   assertEquals(config.AIR_MODEL, "GLM-4.5-Air");
+  assertEquals(config.MODEL_46, "GLM-4.6");
+  assertEquals(config.MODEL_46_THINKING, "GLM-4.6-Thinking");
+  assertEquals(config.MODEL_46_SEARCH, "GLM-4.6-Search");
 });
 
 Deno.test("Feature flags", () => {

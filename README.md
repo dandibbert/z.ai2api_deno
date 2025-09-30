@@ -7,7 +7,7 @@
   ![Oak](https://img.shields.io/badge/framework-Oak-009688.svg)
   ![Version: 1.2.0](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)
   
-  <p>轻量级 OpenAI API 兼容代理服务，通过 Claude Code Router 接入 Z.AI，支持 GLM-4.5 系列模型的完整功能。使用 Deno 和 Oak 框架重写，提供更好的性能和类型安全。</p>
+  <p>轻量级 OpenAI API 兼容代理服务，通过 Claude Code Router 接入 Z.AI，支持 GLM-4.5/4.6 系列模型的完整功能。使用 Deno 和 Oak 框架重写，提供更好的性能和类型安全。</p>
 </div>
 
 
@@ -18,7 +18,8 @@
 - 🚀 **高性能流式响应** - Server-Sent Events (SSE) 支持
 - 🛠️ **增强工具调用** - 改进的 Function Call 实现
 - 🧠 **思考模式支持** - 智能处理模型推理过程
-- 🔍 **搜索模型集成** - GLM-4.5-Search 网络搜索能力
+- 🔍 **搜索模型集成** - GLM-4.5/4.6-Search 网络搜索能力
+- 🆕 **前沿模型预览** - GLM-4.6 Preview 模式与 195K token 长上下文
 - 🐳 **Docker 部署** - 一键容器化部署
 - 🛡️ **会话隔离** - 匿名模式保护隐私
 - 🔧 **灵活配置** - 环境变量灵活配置
@@ -91,7 +92,7 @@ const client = new OpenAI({
 
 // 普通对话
 const response = await client.chat.completions.create({
-  model: "GLM-4.5",
+  model: "GLM-4.6",
   messages: [{ role: "user", content: "你好，介绍一下 TypeScript" }],
   stream: false
 });
@@ -116,6 +117,9 @@ docker-compose up -d
 | `GLM-4.5-Thinking` | 0727-360B-API | 思考模型 | 显示推理过程，透明度高 |
 | `GLM-4.5-Search` | 0727-360B-API | 搜索模型 | 实时网络搜索，信息更新 |
 | `GLM-4.5-Air` | 0727-106B-API | 轻量模型 | 快速响应，高效推理 |
+| `GLM-4.6` | GLM-4-6-API-V1 | 预览模型 | 195K token 长上下文，Vision & MCP 能力 |
+| `GLM-4.6-Thinking` | GLM-4-6-API-V1 | 预览思考模型 | 预览模式 + 显示推理过程 |
+| `GLM-4.6-Search` | GLM-4-6-API-V1 | 预览搜索模型 | 预览模式 + 实时网络搜索 |
 | `GLM-4.5V` | glm-4.5v | ❌ 暂不支持 |   |
 
 ### Function Call 功能
@@ -139,7 +143,7 @@ const tools = [{
 
 // 使用工具
 const response = await client.chat.completions.create({
-  model: "GLM-4.5",
+  model: "GLM-4.6",
   messages: [{ role: "user", content: "北京天气怎么样？" }],
   tools: tools,
   tool_choice: "auto"
@@ -150,7 +154,7 @@ const response = await client.chat.completions.create({
 
 ```typescript
 const response = await client.chat.completions.create({
-  model: "GLM-4.5-Thinking",
+  model: "GLM-4.6-Thinking",
   messages: [{ role: "user", content: "解释量子计算" }],
   stream: true
 });
@@ -181,6 +185,9 @@ for await (const chunk of response) {
 | `THINKING_MODEL` | `GLM-4.5-Thinking` | 思考模型名称 |
 | `SEARCH_MODEL` | `GLM-4.5-Search` | 搜索模型名称 |
 | `AIR_MODEL` | `GLM-4.5-Air` | Air 模型名称 |
+| `MODEL_46` | `GLM-4.6` | 预览模型名称 |
+| `MODEL_46_THINKING` | `GLM-4.6-Thinking` | 预览思考模型名称 |
+| `MODEL_46_SEARCH` | `GLM-4.6-Search` | 预览搜索模型名称 |
 | `DEBUG_LOGGING` | `true` | 调试日志开关 |
 | `THINKING_PROCESSING` | `think` | 思考内容处理策略 |
 | `ANONYMOUS_MODE` | `true` | 匿名模式开关 |
@@ -211,7 +218,7 @@ const client = new OpenAI({
 // 智能客服
 async function chatWithAI(message: string): Promise<string> {
   const response = await client.chat.completions.create({
-    model: "GLM-4.5",
+    model: "GLM-4.6",
     messages: [{ role: "user", content: message }]
   });
   return response.choices[0].message.content || "";
@@ -221,7 +228,15 @@ async function chatWithAI(message: string): Promise<string> {
 ### 2. 多模型对比测试
 
 ```typescript
-const models = ["GLM-4.5", "GLM-4.5-Thinking", "GLM-4.5-Search", "GLM-4.5-Air"];
+const models = [
+  "GLM-4.5",
+  "GLM-4.5-Thinking",
+  "GLM-4.5-Search",
+  "GLM-4.5-Air",
+  "GLM-4.6",
+  "GLM-4.6-Thinking",
+  "GLM-4.6-Search"
+];
 
 for (const model of models) {
   const response = await client.chat.completions.create({
@@ -288,7 +303,10 @@ A: 创建 [zai.js](https://gist.githubusercontent.com/musistudio/b35402d6f9c95c6
       "api_key": "sk-your-api-key",
       "models": [
         "GLM-4.5",
-        "GLM-4.5-Air"
+        "GLM-4.5-Air",
+        "GLM-4.6",
+        "GLM-4.6-Thinking",
+        "GLM-4.6-Search"
       ],
       "transformers": {
         "use": [
@@ -308,13 +326,13 @@ A: 创建 [zai.js](https://gist.githubusercontent.com/musistudio/b35402d6f9c95c6
     }
   },
   "Router": {
-    "default": "GLM,GLM-4.5",
-    "background": "GLM,GLM-4.5",
-    "think": "GLM,GLM-4.5",
-    "longContext": "GLM,GLM-4.5",
+    "default": "GLM,GLM-4.6",
+    "background": "GLM,GLM-4.6",
+    "think": "GLM,GLM-4.6-Thinking",
+    "longContext": "GLM,GLM-4.6",
     "longContextThreshold": 60000,
-    "webSearch": "GLM,GLM-4.5",
-    "image": "GLM,GLM-4.5"
+    "webSearch": "GLM,GLM-4.6-Search",
+    "image": "GLM,GLM-4.6"
   },
   "CUSTOM_ROUTER_PATH": ""
 }
@@ -338,6 +356,9 @@ A:
 - **GLM-4.5-Thinking**: 需要了解推理过程的场景
 - **GLM-4.5-Search**: 需要实时信息的场景
 - **GLM-4.5-Air**: 高并发、低延迟要求的场景
+- **GLM-4.6**: 195K token 预览模型，支持 Vision/MCP 能力
+- **GLM-4.6-Thinking**: 预览模式 + 推理可视化，适合高阶推理
+- **GLM-4.6-Search**: 预览模式 + 搜索增强，适合实时检索
 
 **Q: 如何自定义配置？**
 A: 通过环境变量配置，推荐使用 `.env` 文件。

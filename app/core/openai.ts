@@ -44,6 +44,24 @@ openaiRouter.get("/models", async (ctx) => {
         created: currentTime,
         owned_by: "z.ai"
       },
+      {
+        id: config.MODEL_46,
+        object: "model",
+        created: currentTime,
+        owned_by: "z.ai"
+      },
+      {
+        id: config.MODEL_46_THINKING,
+        object: "model",
+        created: currentTime,
+        owned_by: "z.ai"
+      },
+      {
+        id: config.MODEL_46_SEARCH,
+        object: "model",
+        created: currentTime,
+        owned_by: "z.ai"
+      },
     ]
   };
   ctx.response.body = response;
@@ -108,22 +126,44 @@ openaiRouter.post("/chat/completions", async (ctx) => {
     }
     
     // Determine model features
-    const isThinking = request.model === config.THINKING_MODEL;
-    const isSearch = request.model === config.SEARCH_MODEL;
+    const isModel46 = request.model === config.MODEL_46;
+    const isModel46Thinking = request.model === config.MODEL_46_THINKING;
+    const isModel46Search = request.model === config.MODEL_46_SEARCH;
+    const isThinking = request.model === config.THINKING_MODEL || isModel46Thinking;
+    const isSearch = request.model === config.SEARCH_MODEL || isModel46Search;
     const isAir = request.model === config.AIR_MODEL;
     const searchMcp = isSearch ? "deep-web-search" : "";
-    
+
     // Determine upstream model ID based on requested model
     let upstreamModelId: string;
     let upstreamModelName: string;
+    const isModel46Variant = isModel46 || isModel46Thinking || isModel46Search;
     if (isAir) {
       upstreamModelId = "0727-106B-API"; // AIR model upstream ID
       upstreamModelName = "GLM-4.5-Air";
+    } else if (isModel46Variant) {
+      upstreamModelId = "GLM-4-6-API-V1";
+      upstreamModelName = "GLM-4.6";
     } else {
       upstreamModelId = "0727-360B-API"; // Default upstream model ID
       upstreamModelName = "GLM-4.5";
     }
-    
+
+    const params: Record<string, any> = {};
+    if (isModel46Variant) {
+      params.max_tokens = 195000;
+    }
+
+    const features: Record<string, any> = {
+      enable_thinking: isThinking,
+      web_search: isSearch,
+      auto_web_search: isSearch,
+    };
+
+    if (isModel46Variant) {
+      features.preview_mode = true;
+    }
+
     // Build upstream request
     const upstreamReq: UpstreamRequest = {
       stream: true, // Always use streaming from upstream
@@ -131,12 +171,8 @@ openaiRouter.post("/chat/completions", async (ctx) => {
       id: msgId,
       model: upstreamModelId, // Dynamic upstream model ID
       messages: upstreamMessages,
-      params: {},
-      features: {
-        enable_thinking: isThinking,
-        web_search: isSearch,
-        auto_web_search: isSearch,
-      },
+      params,
+      features,
       background_tasks: {
         title_generation: false,
         tags_generation: false,

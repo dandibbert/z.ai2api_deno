@@ -13,6 +13,9 @@ export interface Config {
   THINKING_MODEL: string;
   SEARCH_MODEL: string;
   AIR_MODEL: string;
+  MODEL_46: string;
+  MODEL_46_THINKING: string;
+  MODEL_46_SEARCH: string;
   
   // Server Configuration
   LISTEN_PORT: number;
@@ -57,6 +60,9 @@ export const config: Config = {
   THINKING_MODEL: getEnvVar("THINKING_MODEL", "GLM-4.5-Thinking"),
   SEARCH_MODEL: getEnvVar("SEARCH_MODEL", "GLM-4.5-Search"),
   AIR_MODEL: getEnvVar("AIR_MODEL", "GLM-4.5-Air"),
+  MODEL_46: getEnvVar("MODEL_46", "GLM-4.6"),
+  MODEL_46_THINKING: getEnvVar("MODEL_46_THINKING", "GLM-4.6-Thinking"),
+  MODEL_46_SEARCH: getEnvVar("MODEL_46_SEARCH", "GLM-4.6-Search"),
   
   // Server Configuration
   LISTEN_PORT: getEnvNumber("LISTEN_PORT", 8080),
