@@ -5,66 +5,87 @@
 import { Router } from "oak/mod.ts";
 import { config } from "./config.ts";
 import { 
-  OpenAIRequest, Message, UpstreamRequest, ModelItem, 
-  ModelsResponse, Model, OpenAIRequestSchema
+  Message, UpstreamRequest,
+  ModelsResponse, OpenAIRequestSchema
 } from "../models/schemas.ts";
 import { debugLog, generateRequestIds, getAuthToken } from "../utils/helpers.ts";
 import { processMessagesWithTools, contentToString } from "../utils/tools.ts";
 import { StreamResponseHandler, NonStreamResponseHandler } from "./response_handlers.ts";
+import { getAvailableModels } from "../utils/model_fetcher.ts";
 
 export const openaiRouter = new Router();
 
 openaiRouter.get("/models", async (ctx) => {
-  /**List available models*/
-  const currentTime = Math.floor(Date.now() / 1000);
-  const response: ModelsResponse = {
-    object: "list",
-    data: [
-      {
-        id: config.PRIMARY_MODEL,
+  /**List available models with automatic fetching*/
+  try {
+    const availableModels = await getAvailableModels();
+    
+    const response: ModelsResponse = {
+      object: "list",
+      data: availableModels.map(model => ({
+        id: model.id,
         object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.THINKING_MODEL,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.SEARCH_MODEL,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.AIR_MODEL,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.PRIMARY_MODEL_NEW,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.THINKING_MODEL_NEW,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-      {
-        id: config.SEARCH_MODEL_NEW,
-        object: "model",
-        created: currentTime,
-        owned_by: "z.ai"
-      },
-    ]
-  };
-  ctx.response.body = response;
+        created: model.created || Math.floor(Date.now() / 1000),
+        owned_by: model.owned_by || "z.ai"  
+      }))
+    };
+    
+    debugLog(`返回 ${availableModels.length} 个可用模型`);
+    ctx.response.body = response;
+  } catch (error) {
+    debugLog(`获取模型列表失败: ${error}`);
+    
+    // 回退到默认模型列表
+    const currentTime = Math.floor(Date.now() / 1000);
+    const response: ModelsResponse = {
+      object: "list",
+      data: [
+        {
+          id: config.PRIMARY_MODEL,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.THINKING_MODEL,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.SEARCH_MODEL,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.AIR_MODEL,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.PRIMARY_MODEL_NEW,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.THINKING_MODEL_NEW,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+        {
+          id: config.SEARCH_MODEL_NEW,
+          object: "model",
+          created: currentTime,
+          owned_by: "z.ai"
+        },
+      ]
+    };
+    ctx.response.body = response;
+  }
 });
 
 openaiRouter.post("/chat/completions", async (ctx) => {
@@ -207,9 +228,7 @@ openaiRouter.post("/chat/completions", async (ctx) => {
       const stream = new ReadableStream({
         async start(controller) {
           try {
-            let hasStarted = false;
             for await (const chunk of handler.handle()) {
-              hasStarted = true;
               controller.enqueue(new TextEncoder().encode(chunk));
             }
             controller.close();
