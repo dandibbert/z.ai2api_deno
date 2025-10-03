@@ -54,27 +54,6 @@ Deno Deploy是一个全球分布式的边缘计算平台，非常适合部署Den
    - 点击"Deploy"按钮
    - 等待部署完成
 
-### 本地部署
-
-**环境要求**
-- Deno 1.40+
-- 现代浏览器或 Node.js 环境
-
-### 安装运行
-
-```bash
-# 克隆项目
-git clone https://github.com/Luotianyi-0712/z.ai2api_deno.git
-cd z.ai2api_deno
-
-# 使用 Deno 运行
-deno task start
-
-# 或开发模式（自动重载）
-deno task dev
-```
-
-服务启动后访问：http://localhost:8080/v1/models
 
 ### 基础使用
 
@@ -210,64 +189,6 @@ for await (const chunk of response) {
 - `strip` - 移除思考内容
 - `raw` - 保留原始格式
 
-## 🎯 使用场景
-
-### 1. AI 应用开发
-
-```typescript
-// 集成到现有应用
-import OpenAI from 'openai';
-
-const client = new OpenAI({
-  baseURL: "http://localhost:8080/v1",
-  apiKey: "your-token"
-});
-
-// 智能客服
-async function chatWithAI(message: string): Promise<string> {
-  const response = await client.chat.completions.create({
-    model: "GLM-4.5",
-    messages: [{ role: "user", content: message }]
-  });
-  return response.choices[0].message.content || "";
-}
-```
-
-### 2. 多模型对比测试
-
-```typescript
-const models = ["GLM-4.5", "GLM-4.5-Thinking", "GLM-4.5-Search", "GLM-4.5-Air", "GLM-4.6", "GLM-4.6-Thinking", "GLM-4.6-Search"];
-
-for (const model of models) {
-  const response = await client.chat.completions.create({
-    model: model,
-    messages: [{ role: "user", content: "什么是机器学习？" }]
-  });
-  console.log(`\n=== ${model} ===`);
-  console.log(response.choices[0].message.content);
-}
-```
-
-### 3. 工具调用集成
-
-```typescript
-// 结合外部 API
-async function callExternalAPI(toolName: string, arguments: any): Promise<any> {
-  // 执行实际工具调用
-  return result;
-}
-
-// 处理工具调用
-if (response.choices[0].message.tool_calls) {
-  for (const toolCall of response.choices[0].message.tool_calls) {
-    const result = await callExternalAPI(
-      toolCall.function.name,
-      JSON.parse(toolCall.function.arguments)
-    );
-    // 将结果返回给模型继续对话
-  }
-}
-```
 
 ## ❓ 常见问题
 
@@ -335,27 +256,8 @@ A: 创建 [zai.js](https://gist.githubusercontent.com/musistudio/b35402d6f9c95c6
 }
 ```
 
-**Q: 匿名模式是什么？**
-A: 匿名模式使用临时 token，避免对话历史共享，保护隐私。
-
-**Q: Function Call 如何工作？**
-A: 通过智能提示注入实现，将工具定义转换为系统提示。
-
 **Q: 支持哪些 OpenAI 功能？**
 A: 支持聊天完成、模型列表、流式响应、工具调用等核心功能。
-
-**Q: Function Call 如何优化？**
-A: 改进了工具调用的请求响应结构，支持更复杂的工具链调用和并行执行。
-
-**Q: 如何选择合适的模型？**
-A:
-- **GLM-4.5**: 通用场景，性能和效果平衡
-- **GLM-4.5-Thinking**: 需要了解推理过程的场景
-- **GLM-4.5-Search**: 需要实时信息的场景
-- **GLM-4.5-Air**: 高并发、低延迟要求的场景
-- **GLM-4.6**: 新版通用模型，性能进一步优化
-- **GLM-4.6-Thinking**: 新版思考模型，推理能力更强
-- **GLM-4.6-Search**: 新版搜索模型，搜索准确性更高的场景
 
 **Q: 如何自定义配置？**
 A: 通过环境变量配置，推荐使用 `.env` 文件。
@@ -416,10 +318,12 @@ z.ai2api-deno/
 │   ├── utils/
 │   │   ├── helpers.ts             # 辅助函数
 │   │   ├── tools.ts               # 增强工具调用处理
+│   │   ├── model_fetcher.ts       # 自动获取模型列表
 │   │   └── sse_parser.ts          # SSE 流式解析器
 ├── deploy/                        # Docker 部署配置
 ├── main.ts                        # Oak 应用入口
 ├── deno.json                      # Deno 项目配置
+├── deno.lock
 └── README.md                      # 项目文档
 ```
 
