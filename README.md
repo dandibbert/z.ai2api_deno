@@ -32,6 +32,7 @@
 
 Deno Deploy是一个全球分布式的边缘计算平台，非常适合部署Deno应用。
 
+[![Deploy to Deno](https://deno.com/deploy.svg)](https://dash.deno.com/new_project)
 #### 步骤：
 
 1. **准备代码**
