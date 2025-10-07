@@ -3,6 +3,7 @@
  */
 
 import { config } from "../core/config.ts";
+import { Message, ContentPart, UpstreamRequest } from "../models/schemas.ts";
 
 // 全局 UserAgent 实例，避免每次调用都创建新实例
 let _userAgentInstance: Record<string, string> | null = null;
@@ -39,53 +40,92 @@ export function debugLog(message: string, ...args: unknown[]): void {
 }
 
 /**
- * 生成API请求所需的签名头部
- * 签名参数逻辑实现
+ * 旧版签名实现，仍用于匿名 token 获取
  */
-export async function generateSignatureHeaders(
-  token: string, 
-  body: string = "", 
-  method: string = "POST"
+async function generateLegacySignatureHeaders(
+  token: string,
+  body: string = "",
+  method: string = "POST",
 ): Promise<Record<string, string>> {
-  // 生成时间戳（毫秒）
   const timestamp = Date.now().toString();
-  
-  // 生成16位随机nonce
   const randomBytes = new Uint8Array(8);
   crypto.getRandomValues(randomBytes);
-  const nonce = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-  
-  // 生成签名字符串: method + "\n" + timestamp + "\n" + nonce + "\n" + body
+  const nonce = Array.from(randomBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .substring(0, 16);
+
   const signString = `${method}\n${timestamp}\n${nonce}\n${body}`;
-  
-  // 使用HMAC-SHA256生成签名
+
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(token),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
-  
+
   const signature = await crypto.subtle.sign(
     "HMAC",
     key,
-    encoder.encode(signString)
+    encoder.encode(signString),
   );
-  
-  // 将签名转换为十六进制字符串
+
   const signatureHex = Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  
-  debugLog(`🔐 生成签名头部: timestamp=${timestamp}, nonce=${nonce.substring(0, 8)}..., signature=${signatureHex.substring(0, 16)}...`);
-  
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  debugLog(
+    `🔐 旧版签名头部: timestamp=${timestamp}, nonce=${nonce.substring(0, 8)}..., signature=${signatureHex.substring(0, 16)}...`,
+  );
+
   return {
     "X-Timestamp": timestamp,
     "X-Nonce": nonce,
-    "X-Signature": signatureHex
+    "X-Signature": signatureHex,
   };
+}
+
+async function hmacSha256Hex(key: string, message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    cryptoKey,
+    encoder.encode(message),
+  );
+
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function generateChatSignature(
+  e: string,
+  t: string,
+): Promise<{ signature: string; timestamp: number }> {
+  const timestampMs = Date.now();
+  const n = Math.floor(timestampMs / (5 * 60 * 1000));
+
+  const intermediateKey = await hmacSha256Hex("junjie", String(n));
+  const finalSignature = await hmacSha256Hex(
+    intermediateKey,
+    `${e}|${t}|${timestampMs}`,
+  );
+
+  debugLog(
+    `🔐 新版签名: e=${e}, t长度=${t.length}, 签名=${finalSignature.substring(0, 16)}..., ts=${timestampMs}`,
+  );
+
+  return { signature: finalSignature, timestamp: timestampMs };
 }
 
 export function generateRequestIds(): [string, string] {
@@ -203,7 +243,7 @@ export async function getAnonymousToken(): Promise<string> {
   
   // 为获取token添加签名头部（使用临时token）
   const tempToken = "anonymous";
-  const signatureHeaders = await generateSignatureHeaders(tempToken, "", "GET");
+  const signatureHeaders = await generateLegacySignatureHeaders(tempToken, "", "GET");
   Object.assign(headers, signatureHeaders);
   
   try {
@@ -271,32 +311,92 @@ export function transformThinkingContent(content: string): string {
   return content.trim();
 }
 
+function extractMessageText(message: Message): string {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+
+  if (Array.isArray(message.content)) {
+    return message.content
+      .map((part: ContentPart) => part.text ?? "")
+      .join("")
+      .trim();
+  }
+
+  if (typeof message.reasoning_content === "string") {
+    return message.reasoning_content;
+  }
+
+  return "";
+}
+
+function getLastUserMessageContent(messages: Message[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === "user") {
+      const content = extractMessageText(msg);
+      if (content) {
+        return content;
+      }
+    }
+  }
+
+  // 回退：使用最后一条消息的内容
+  const fallback = messages.at(-1);
+  return fallback ? extractMessageText(fallback) : "";
+}
+
 export async function callUpstreamApi(
-  upstreamReq: Record<string, unknown>,
+  upstreamReq: UpstreamRequest,
   chatId: string,
-  authToken: string
+  authToken: string,
 ): Promise<Response> {
-  /**Call upstream API with proper headers*/
   const headers = getBrowserHeaders(chatId);
   headers["Authorization"] = `Bearer ${authToken}`;
-  
-  // 生成请求体JSON字符串用于签名
-  const bodyJson = JSON.stringify(upstreamReq);
-  
-  // 生成签名头部
-  const signatureHeaders = await generateSignatureHeaders(authToken, bodyJson, "POST");
-  Object.assign(headers, signatureHeaders);
-  
-  debugLog(`调用上游API: ${config.API_ENDPOINT}`);
+
+  const requestId = crypto.randomUUID();
+  const timestamp = Date.now().toString();
+  const userId = crypto.randomUUID();
+
+  const messages = Array.isArray(upstreamReq.messages) ? upstreamReq.messages : [];
+  const lastMessageContent = getLastUserMessageContent(messages);
+
+  const signatureSource = `requestId,${requestId},timestamp,${timestamp},user_id,${userId}`;
+  const { signature, timestamp: signatureTimestamp } = await generateChatSignature(
+    signatureSource,
+    lastMessageContent,
+  );
+
+  headers["X-Signature"] = signature;
+
+  const url = new URL(config.API_ENDPOINT);
+  url.searchParams.set("requestId", requestId);
+  url.searchParams.set("timestamp", timestamp);
+  url.searchParams.set("user_id", userId);
+  url.searchParams.set("signature_timestamp", signatureTimestamp.toString());
+
+  if (upstreamReq.params && typeof upstreamReq.params === "object") {
+    for (const [key, value] of Object.entries(upstreamReq.params)) {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    }
+  }
+
+  const requestPayload = { ...upstreamReq } as Record<string, unknown>;
+  delete requestPayload.params;
+  const bodyJson = JSON.stringify(requestPayload);
+
+  debugLog(`调用上游API: ${url.toString()}`);
   debugLog(`上游请求体: ${bodyJson}`);
-  
-  const response = await fetch(config.API_ENDPOINT, {
+
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers,
     body: bodyJson,
     signal: AbortSignal.timeout(60000),
   });
-  
+
   debugLog(`上游响应状态: ${response.status}`);
   return response;
 }
